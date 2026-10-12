@@ -683,7 +683,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .customer-form { min-height: 0; flex: 1; padding: 0 18px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
   .step-progress { gap: 7px; padding-top: 16px; }
   .step-progress > span { height: 5px; }
-  .step-section { min-height: 0; flex: 1; padding: 22px 0 16px; }
+  .step-section { min-height: 0; flex: 0 0 auto; padding: 22px 0 16px; }
   .form-section-title { gap: 11px; margin-bottom: 17px; }
   .form-section-title > span { width: 34px; height: 34px; font-size: 13px; }
   .form-section-title strong { font-size: 16px; }
@@ -718,7 +718,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .summary-price { font-size: 14px; }
   .order-summary .summary-products { font-size: 12px; }
   .form-error { margin-top: 11px; font-size: 13px; line-height: 1.4; }
-  .modal-actions { min-height: 62px; margin-top: auto; padding-top: 10px; padding-bottom: 4px; gap: 10px; background: white; }
+  .modal-actions { position: static; inset: auto; flex: 0 0 auto; min-height: 62px; margin-top: auto; padding: 10px 0 4px; gap: 10px; background: transparent; }
   .step-actions .button { min-width: 0; flex: 1; min-height: 52px; font-size: 15px; }
   .simple-form { padding: 17px 18px calc(18px + env(safe-area-inset-bottom)); gap: 17px; overflow-y: auto; }
   .modal-intro { font-size: 13px; line-height: 1.5; }
