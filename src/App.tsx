@@ -2,14 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDownLeft, ArrowUpRight, Boxes, Building2, CalendarDays, Check,
   ChevronDown, CircleDollarSign, CreditCard, LayoutDashboard, LogOut,
-  Menu, PackagePlus, Pencil, Plus, Search, Settings, ShoppingBag,
+  MoreHorizontal, PackagePlus, Pencil, Plus, Search, Settings, ShoppingBag,
   TrendingUp, Truck, Users, X, Trash2,
 } from 'lucide-react'
 import {
   Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { users } from './config'
-import { emptyData, loadData, persistenceMode, readLocalData, saveData } from './store'
+import { emptyData, loadData, readLocalData, saveData } from './store'
 import type { AppData, AppUser, Customer, Delivery, Expense, ExpenseFrequency, PaymentPlan } from './types'
 import './App.css'
 
@@ -96,6 +96,7 @@ function App() {
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [expenseModal, setExpenseModal] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
+  const [mobileMore, setMobileMore] = useState(false)
   const [month, setMonth] = useState(monthKey())
 
   useEffect(() => {
@@ -119,6 +120,12 @@ function App() {
       setSyncError('Błąd zapisu w Supabase. Sprawdź konfigurację tabeli i uprawnienia.')
     })
   }, [data, loaded])
+
+  useEffect(() => {
+    if (!syncError) return
+    const timeout = window.setTimeout(() => setSyncError(''), 6000)
+    return () => window.clearTimeout(timeout)
+  }, [syncError])
 
   const ownerIds = useMemo(() => session?.role === 'admin' ? users.filter((user) => user.role === 'seller').map((user) => user.id) : [session?.id ?? ''], [session])
   const visibleCustomers = useMemo(() => data.customers.filter((customer) => ownerIds.includes(customer.ownerId)
@@ -150,6 +157,7 @@ function App() {
     setPage('overview')
     setSearch('')
     setMobileNav(false)
+    setMobileMore(false)
   }
 
   function saveCustomer(draft: DraftCustomer, existing?: Customer) {
@@ -199,7 +207,6 @@ function App() {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
         <div className="brand-lockup"><div className="brand-mark"><span /></div><div><strong>nfc.</strong><small>business desk</small></div></div>
-        <div className="workspace-label">OBSZAR ROBOCZY</div>
         <nav className="main-nav" aria-label="Główna nawigacja">
           {navItems.map(({ page: itemPage, label, icon: Icon }) => (
             <button key={itemPage} type="button" className={`nav-item ${page === itemPage ? 'nav-active' : ''}`} onClick={() => { setPage(itemPage); setMobileNav(false) }}>
@@ -208,21 +215,17 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note"><span className="note-spark">✳</span><div><strong>Porządek w terenie</strong><small>Klienci, zapasy i rozliczenia.</small></div></div>
           <div className="profile-row"><div className="avatar avatar-sidebar">{session.initials}</div><div className="profile-copy"><strong>{session.name}</strong><small>{session.role === 'admin' ? 'Administrator' : 'Opiekun klientów'}</small></div><button type="button" className="icon-button sidebar-logout" aria-label="Wyloguj" title="Wyloguj" onClick={logout}><LogOut size={17} /></button></div>
         </div>
       </aside>
       <main className="main-area">
         <header className="topbar">
-          <button className="icon-button mobile-menu" type="button" onClick={() => setMobileNav(!mobileNav)} aria-label="Otwórz menu"><Menu size={20} /></button>
-          <div className="breadcrumbs"><span>Workspace</span><span className="crumb-separator">/</span><strong>{pageTitle}</strong></div>
+          <div className="breadcrumbs"><strong>{pageTitle}</strong></div>
           <div className="topbar-actions">
-            <span className={`sync-pill ${syncError ? 'sync-error' : ''}`}><span className="sync-dot" />{syncError ? 'Offline' : persistenceMode === 'supabase' ? 'Supabase' : 'Zapis lokalny'}</span>
             {session.role === 'admin' && <label className="owner-select"><Users size={15} /><select value={selectedOwner} onChange={(event) => setSelectedOwner(event.target.value)} aria-label="Wybierz użytkownika"><option value="all">Wszyscy użytkownicy</option>{users.filter((user) => user.role === 'seller').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><ChevronDown size={14} /></label>}
-            <button type="button" className="top-avatar" title={session.name}>{session.initials}</button>
+            <button type="button" className="top-logout" title="Wyloguj" aria-label="Wyloguj" onClick={logout}><LogOut size={18} /></button>
           </div>
         </header>
-        {syncError && <div className="sync-warning" role="status">{syncError}</div>}
         <div className="page-content">
           {page === 'overview' && <Overview customers={visibleCustomers} stats={currentStats} inventory={currentInventory} series={series} ownerName={activeName} onNavigate={setPage} onAddCustomer={() => setCustomerModal('new')} />}
           {page === 'customers' && <CustomersPage customers={filteredCustomers} search={search} onSearch={setSearch} onAdd={() => setCustomerModal('new')} onEdit={setCustomerModal} onDelete={deleteCustomer} onTogglePayment={togglePayment} onHistory={setPaymentCustomer} />}
@@ -233,7 +236,10 @@ function App() {
         </div>
       </main>
       {mobileNav && <button className="mobile-scrim" type="button" aria-label="Zamknij menu" onClick={() => setMobileNav(false)} />}
-      {customerModal && <CustomerModal customer={customerModal === 'new' ? undefined : customerModal} ownerId={session.role === 'admin' ? (customerModal !== 'new' ? customerModal.ownerId : selectedOwner === 'all' ? users.find((user) => user.role === 'seller')?.id ?? session.id : selectedOwner) : session.id} onClose={() => setCustomerModal(null)} onSave={saveCustomer} />}
+      {mobileMore && <MobileMoreMenu page={page} onNavigate={(nextPage) => { setPage(nextPage); setMobileMore(false) }} onLogout={logout} />}
+      <MobileTabBar page={page} onNavigate={setPage} onMore={() => setMobileMore((open) => !open)} moreOpen={mobileMore} />
+      {syncError && <div className="sync-toast" role="status">{syncError}</div>}
+      {customerModal && <CustomerModal customer={customerModal === 'new' ? undefined : customerModal} ownerId={session.role === 'admin' ? (customerModal !== 'new' ? customerModal.ownerId : selectedOwner === 'all' ? users.find((user) => user.role === 'seller')?.id ?? session.id : selectedOwner) : session.id} inventory={inventoryFor(data, session.role === 'admin' && customerModal !== 'new' ? customerModal.ownerId : session.role === 'admin' && selectedOwner === 'all' ? users.find((user) => user.role === 'seller')?.id ?? session.id : selectedOwner || session.id)} onClose={() => setCustomerModal(null)} onSave={saveCustomer} />}
       {paymentCustomer && <PaymentHistoryModal customer={paymentCustomer} onToggle={(key) => togglePayment(paymentCustomer, key)} onClose={() => setPaymentCustomer(null)} />}
       {deliveryModal && <DeliveryModal ownerId={session.role === 'admin' && selectedOwner === 'all' ? users.find((user) => user.role === 'seller')?.id ?? session.id : currentOwner} onClose={() => setDeliveryModal(false)} onSave={saveDelivery} />}
       {expenseModal && <ExpenseModal ownerId={session.role === 'admin' && selectedOwner === 'all' ? users.find((user) => user.role === 'seller')?.id ?? session.id : currentOwner} onClose={() => setExpenseModal(false)} onSave={saveExpense} />}
@@ -241,20 +247,36 @@ function App() {
   )
 }
 
+function MobileTabBar({ page, onNavigate, onMore, moreOpen }: { page: Page; onNavigate: (page: Page) => void; onMore: () => void; moreOpen: boolean }) {
+  const tabs: { page: Page; label: string; icon: typeof LayoutDashboard }[] = [
+    { page: 'overview', label: 'Dziś', icon: LayoutDashboard },
+    { page: 'customers', label: 'Klienci', icon: Building2 },
+    { page: 'inventory', label: 'Magazyn', icon: Boxes },
+    { page: 'statistics', label: 'Wyniki', icon: TrendingUp },
+  ]
+  return <nav className="mobile-tabbar" aria-label="Nawigacja">
+    {tabs.map(({ page: tabPage, label, icon: Icon }) => <button type="button" key={tabPage} className={page === tabPage ? 'mobile-tab-active' : ''} onClick={() => onNavigate(tabPage)}><Icon size={21} strokeWidth={1.9} /><span>{label}</span></button>)}
+    <button type="button" className={moreOpen || page === 'expenses' || page === 'settings' ? 'mobile-tab-active' : ''} aria-expanded={moreOpen} onClick={onMore}><MoreHorizontal size={22} /><span>Więcej</span></button>
+  </nav>
+}
+
+function MobileMoreMenu({ page, onNavigate, onLogout }: { page: Page; onNavigate: (page: Page) => void; onLogout: () => void }) {
+  return <><button type="button" className="more-scrim" aria-label="Zamknij menu" onClick={() => onNavigate(page)} /><section className="more-menu" aria-label="Więcej opcji"><button type="button" className={page === 'expenses' ? 'more-menu-active' : ''} onClick={() => onNavigate('expenses')}><CreditCard size={19} /><span>Koszty</span></button><button type="button" className={page === 'settings' ? 'more-menu-active' : ''} onClick={() => onNavigate('settings')}><Settings size={19} /><span>Ustawienia</span></button><button type="button" onClick={onLogout}><LogOut size={19} /><span>Wyloguj</span></button></section></>
+}
+
 function Login({ onLogin }: { onLogin: (username: string, password: string) => boolean }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  return <main className="login-page"><div className="login-decoration decor-one" /><div className="login-decoration decor-two" />
-    <section className="login-panel"><div className="brand-lockup login-brand"><div className="brand-mark"><span /></div><div><strong>nfc.</strong><small>business desk</small></div></div>
-      <div className="login-kicker"><span /> PANEL ZARZĄDZANIA</div><h1>Wróćmy do<br /><em>dobrych wyników.</em></h1><p className="login-intro">Zaloguj się, aby zarządzać klientami, stanami magazynowymi i płatnościami.</p>
+  return <main className="login-page">
+    <section className="login-panel"><div className="brand-lockup login-brand"><div className="brand-mark"><span /></div><div><strong>nfc.</strong><small>panel zespołu</small></div></div>
+      <h1>Zaloguj się</h1>
       <form className="login-form" onSubmit={(event) => { event.preventDefault(); if (!onLogin(username, password)) setError('Nieprawidłowy login lub hasło.') }}>
         <label>Login<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Twój login" required /></label>
         <label>Hasło<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••••" required /></label>
-        {error && <p className="form-error">{error}</p>}<button className="button button-primary login-submit" type="submit">Zaloguj się <ArrowUpRight size={17} /></button>
-      </form><div className="login-foot"><span>© {mountedAt.getFullYear()} NFC Business Desk</span><span>Polski panel operacyjny</span></div>
+        {error && <p className="form-error" role="alert">{error}</p>}<button className="button button-primary login-submit" type="submit">Zaloguj się</button>
+      </form>
     </section>
-    <aside className="login-side"><div className="login-side-copy"><span className="eyebrow">MNIEJ CHAOSU. WIĘCEJ KONTROLI.</span><p>Każdy klient,<br />każda naklejka,<br /><em>każda płatność.</em></p><div className="login-line" /></div><div className="login-side-bottom"><span>01 / 03</span><span>System gotowy do pracy</span></div></aside>
   </main>
 }
 
@@ -267,7 +289,7 @@ function Overview({ customers, stats, inventory, series, ownerName, onNavigate, 
   const dueCustomers = customers.filter((customer) => customer.plan === 'monthly' && !customer.paidMonths[currentMonth])
   const recentCustomers = [...customers].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
   return <>
-    <div className="page-heading"><div><div className="eyebrow">{new Intl.DateTimeFormat('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).format(mountedAt)}</div><h1>Dzień dobry<span className="heading-period">.</span></h1><p className="page-subtitle">Oto co dzieje się w obszarze: <strong>{ownerName}</strong></p></div><div className="heading-actions"><button type="button" className="button button-quiet" onClick={() => onNavigate('inventory')}><PackagePlus size={16} /> Dostawa</button><button type="button" className="button button-primary" onClick={onAddCustomer}><Plus size={17} /> Dodaj klienta</button></div></div>
+    <div className="page-heading"><div><h1>Dzień dobry, {ownerName.split(' ')[0]}<span className="heading-period">.</span></h1></div><div className="heading-actions"><button type="button" className="button button-quiet" onClick={() => onNavigate('inventory')}><PackagePlus size={16} /> Dostawa</button><button type="button" className="button button-primary" onClick={onAddCustomer}><Plus size={17} /> Dodaj klienta</button></div></div>
     <section className="metric-grid">
       <Metric title="Przychód · ten miesiąc" value={currency(stats.revenue)} hint={`${stats.transactions} opłaconych płatności`} icon={ArrowDownLeft} tone="mint" />
       <Metric title="Dochód · po kosztach" value={currency(stats.income)} hint="Po prowizji, towarze i kosztach" icon={TrendingUp} tone="dark" />
@@ -292,7 +314,6 @@ function Overview({ customers, stats, inventory, series, ownerName, onNavigate, 
         {dueCustomers.length ? <div className="due-list">{dueCustomers.slice(0, 4).map((customer) => <div className="due-row" key={customer.id}><div className="mini-avatar">{initials(customer.name)}</div><div className="due-copy"><strong>{customer.name}</strong><small>{currency(customer.amount)} · {monthTitle()}</small></div><span className="status status-pending">Oczekuje</span></div>)}</div> : <EmptyState icon={Check} title="Wszystko rozliczone" text="Nie ma oczekujących płatności za ten miesiąc." />}
       </section>
     </div>
-    <div className="dashboard-footnote"><span className="footnote-icon"><CircleDollarSign size={16} /></span><span><strong>Dochód = przychód − koszty.</strong> Koszt towaru liczony jest według średniej ceny zakupu z dostaw.</span><button type="button" className="text-button" onClick={() => onNavigate('settings')}>Ustawienia prowizji <ArrowUpRight size={14} /></button></div>
   </>
 }
 
@@ -331,15 +352,21 @@ function CustomersPage({ customers, search, onSearch, onAdd, onEdit, onDelete, o
 }) {
   return <>
     <div className="page-heading page-heading-compact"><div><div className="eyebrow">RELACJE I ROZLICZENIA</div><h1>Klienci<span className="heading-period">.</span></h1><p className="page-subtitle">{customers.length} {plural(customers.length, 'miejsce w bazie', 'miejsca w bazie', 'miejsc w bazie')}</p></div><button type="button" className="button button-primary" onClick={onAdd}><Plus size={17} /> Dodaj klienta</button></div>
-    <section className="surface directory-surface"><div className="directory-toolbar"><label className="search-field"><Search size={17} /><input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Szukaj miejsca, adresu lub telefonu" /></label><span className="directory-total">{customers.length} rekordów</span></div>
-      {customers.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>MIEJSCE</th><th>KONTAKT</th><th>PLAN</th><th>NAKLEJKI / STOJAKI</th><th>ROZLICZENIE</th><th /></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}>
+    <section className="surface directory-surface"><div className="directory-toolbar"><label className="search-field"><Search size={17} /><input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Szukaj miejsca, adresu lub telefonu" /></label><span className="directory-total">{customers.length} {plural(customers.length, 'klient', 'klientów', 'klientów')}</span></div>
+      {customers.length ? <><div className="table-scroll customer-desktop-table"><table className="data-table"><thead><tr><th>MIEJSCE</th><th>KONTAKT</th><th>PLAN</th><th>NAKLEJKI / STOJAKI</th><th>ROZLICZENIE</th><th /></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}>
         <td><div className="customer-cell"><CustomerAvatar customer={customer} /><div><strong>{customer.name}</strong><small>{customer.address}</small></div></div></td>
         <td><a className="contact-link" href={`tel:${customer.phone}`}>{customer.phone}</a><small className="contact-sub">{customer.email || customer.website || '—'}</small></td>
         <td><span className={`plan-pill ${customer.plan === 'monthly' ? 'plan-monthly' : 'plan-once'}`}>{customer.plan === 'monthly' ? 'Miesięczny' : 'Jednorazowy'}</span><small className="amount-sub">{currency(customer.amount)}{customer.plan === 'monthly' ? ' / mies.' : ''}</small></td>
         <td><span className="stock-quantity">{customer.stickers} <small>NFC</small><i>·</i>{customer.stands} <small>stoj.</small></span></td>
         <td>{customer.plan === 'monthly' ? <div className="payment-cell"><button type="button" className={`payment-toggle ${customer.paidMonths[monthKey()] ? 'payment-paid' : ''}`} onClick={() => onTogglePayment(customer)}><span>{customer.paidMonths[monthKey()] ? <Check size={12} /> : null}</span>{customer.paidMonths[monthKey()] ? 'Opłacono' : 'Oznacz wpłatę'}</button><button type="button" className="history-button" onClick={() => onHistory(customer)}>Historia</button></div> : <span className="status status-paid"><Check size={12} /> Opłacono</span>}</td>
         <td><div className="row-actions"><button type="button" className="icon-button" aria-label={`Edytuj ${customer.name}`} onClick={() => onEdit(customer)}><Pencil size={15} /></button><button type="button" className="icon-button danger-hover" aria-label={`Usuń ${customer.name}`} onClick={() => onDelete(customer)}><Trash2 size={15} /></button></div></td>
-      </tr>)}</tbody></table></div> : <EmptyState icon={ShoppingBag} title={search ? 'Nie znaleziono klientów' : 'Twoja baza jest jeszcze pusta'} text={search ? 'Spróbuj zmienić wpisane hasło.' : 'Dodaj pierwsze miejsce i przypisz mu plan płatności.'}><button type="button" className="button button-primary" onClick={onAdd}><Plus size={16} /> Dodaj klienta</button></EmptyState>}
+      </tr>)}</tbody></table></div><div className="customer-mobile-list">{customers.map((customer) => <article className="customer-mobile-row" key={customer.id}>
+        <div className="customer-mobile-head"><CustomerAvatar customer={customer} /><div className="customer-mobile-name"><strong>{customer.name}</strong><small>{customer.address}</small></div><button type="button" className="icon-button mobile-row-action" aria-label={`Edytuj ${customer.name}`} onClick={() => onEdit(customer)}><Pencil size={18} /></button><button type="button" className="icon-button mobile-row-action danger-hover" aria-label={`Usuń ${customer.name}`} onClick={() => onDelete(customer)}><Trash2 size={18} /></button></div>
+        <a className="customer-mobile-phone" href={`tel:${customer.phone}`}>{customer.phone}</a>
+        {(customer.email || customer.website) && <span className="customer-mobile-extra">{customer.email || customer.website}</span>}
+        <div className="customer-mobile-meta"><span className={`plan-pill ${customer.plan === 'monthly' ? 'plan-monthly' : 'plan-once'}`}>{customer.plan === 'monthly' ? 'Co miesiąc' : 'Jednorazowo'}</span><strong>{currency(customer.amount)}{customer.plan === 'monthly' ? ' / mies.' : ''}</strong><span className="mobile-stock-count">{customer.stickers} NFC · {customer.stands} stoj.</span></div>
+        {customer.plan === 'monthly' ? <div className="customer-mobile-payment"><button type="button" className={`payment-toggle ${customer.paidMonths[monthKey()] ? 'payment-paid' : ''}`} onClick={() => onTogglePayment(customer)}><span>{customer.paidMonths[monthKey()] ? <Check size={14} /> : null}</span>{customer.paidMonths[monthKey()] ? 'Wpłata przyjęta' : 'Oznacz wpłatę'}</button><button type="button" className="mobile-history-button" onClick={() => onHistory(customer)}>Historia wpłat</button></div> : <span className="status status-paid"><Check size={14} /> Opłacono</span>}
+      </article>)}</div></> : <EmptyState icon={ShoppingBag} title={search ? 'Nie znaleziono klientów' : 'Brak klientów'} text={search ? 'Zmień wpisaną nazwę, adres lub telefon.' : 'Dodaj pierwsze miejsce, aby zacząć.'}><button type="button" className="button button-primary" onClick={onAdd}><Plus size={16} /> Dodaj klienta</button></EmptyState>}
     </section>
     <div className="page-note"><span className="alert-dot" /> Płatności miesięczne rozliczaj przyciskiem „Oznacz wpłatę”. Nowy miesiąc pojawi się automatycznie.</div>
   </>
@@ -406,7 +433,8 @@ function EmptyState({ icon: Icon, title, text, onAction, actionLabel, children }
   return <div className="empty-state"><div className="empty-icon"><Icon size={21} /></div><strong>{title}</strong><p>{text}</p>{children ?? (onAction && <button type="button" className="button button-outline" onClick={onAction}><Plus size={16} />{actionLabel}</button>)}</div>
 }
 
-function CustomerModal({ customer, ownerId, onClose, onSave }: { customer?: Customer; ownerId: string; onClose: () => void; onSave: (draft: DraftCustomer, existing?: Customer) => boolean }) {
+function CustomerModal({ customer, ownerId, inventory, onClose, onSave }: { customer?: Customer; ownerId: string; inventory: { stickers: number; stands: number }; onClose: () => void; onSave: (draft: DraftCustomer, existing?: Customer) => boolean }) {
+  const [step, setStep] = useState(1)
   const [name, setName] = useState(customer?.name ?? '')
   const [address, setAddress] = useState(customer?.address ?? '')
   const [phone, setPhone] = useState(customer?.phone ?? '')
@@ -419,36 +447,57 @@ function CustomerModal({ customer, ownerId, onClose, onSave }: { customer?: Cust
   const [stickers, setStickers] = useState(customer?.stickers ?? 1)
   const [stands, setStands] = useState(customer?.stands ?? 0)
   const [error, setError] = useState('')
+  const [showOptional, setShowOptional] = useState(Boolean(customer?.email || customer?.website || customer?.photoUrl))
   const choices = plan === 'monthly' ? monthlyAmounts : oneTimeAmounts
   const isCustom = !choices.includes(amount)
+  const stepNames = ['Dane klienta', 'Płatność', 'Produkty']
+
+  function continueStep() {
+    setError('')
+    if (step === 1 && (!name.trim() || !address.trim() || !phone.trim())) {
+      setError('Uzupełnij nazwę, adres i telefon.')
+      return
+    }
+    if (step === 2 && plan === 'one-time' && !channel) {
+      setError('Wybierz płatność na miejscu albo internetową.')
+      return
+    }
+    if (step === 2 && amount <= 0) {
+      setError('Wpisz kwotę większą od zera.')
+      return
+    }
+    setStep((current) => Math.min(3, current + 1))
+  }
+
   function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (!name.trim() || !address.trim() || !phone.trim()) { setError('Uzupełnij nazwę miejsca, adres i numer telefonu.'); return }
-    if (plan === 'one-time' && !channel) { setError('Wybierz, czy płatność będzie na miejscu, czy internetowo.'); return }
-    if (amount <= 0) { setError('Kwota musi być większa od zera.'); return }
+    if (step < 3) { continueStep(); return }
     const saved = onSave({ ownerId, name: name.trim(), address: address.trim(), phone: phone.trim(), email: email.trim(), website: website.trim(), photoUrl: photoUrl.trim(), plan, amount, channel, stickers, stands }, customer)
     if (!saved) setError('Brak wystarczającej liczby produktów w magazynie. Dodaj dostawę lub zmniejsz ilość.')
   }
-  return <Modal title={customer ? 'Edytuj klienta' : 'Nowy klient'} eyebrow="KARTA MIEJSCA" onClose={onClose} wide>
-    <form onSubmit={submit} className="customer-form">
-      <div className="form-section"><div className="form-section-title"><span>01</span><div><strong>Dane miejsca</strong><small>Informacje kontaktowe klienta</small></div></div><div className="form-grid">
+  return <Modal title={customer ? 'Edytuj klienta' : 'Nowy klient'} eyebrow={`${step} z 3 · ${stepNames[step - 1]}`} onClose={onClose} wide>
+    <form onSubmit={submit} className="customer-form" noValidate>
+      <div className="step-progress" aria-label={`Krok ${step} z 3`}>{stepNames.map((label, index) => <span key={label} className={index < step ? 'step-progress-done' : ''} />)}</div>
+      {step === 1 && <div className="form-section step-section"><div className="form-section-title"><span>1</span><div><strong>Gdzie jest naklejka?</strong><small>Podstawowe dane miejsca</small></div></div><div className="form-grid">
         <label className="form-field form-span-two">Nazwa miejsca<input value={name} onChange={(event) => setName(event.target.value)} placeholder="np. Kawiarnia Północ" autoFocus required /></label>
-        <label className="form-field form-span-two">Adres<input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Ulica, kod pocztowy, miasto" required /></label>
-        <label className="form-field">Numer telefonu<input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+48 000 000 000" required /></label>
-        <label className="form-field">E-mail <span className="optional">opcjonalnie</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="kontakt@firma.pl" /></label>
-        <label className="form-field">Strona internetowa <span className="optional">opcjonalnie</span><input value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://" /></label>
-        <label className="form-field">Zdjęcie / logo <span className="optional">link opcjonalny</span><input type="url" value={photoUrl} onChange={(event) => setPhotoUrl(event.target.value)} placeholder="https://..." /></label>
-      </div></div>
-      <div className="form-section"><div className="form-section-title"><span>02</span><div><strong>Plan płatności</strong><small>Wybierz sposób rozliczenia</small></div></div>
-        <div className="segmented-control"><button type="button" className={plan === 'monthly' ? 'segment-active' : ''} onClick={() => { setPlan('monthly'); setAmount(monthlyAmounts.includes(amount) ? amount : 15); setChannel(null) }}><CalendarDays size={16} /> Miesięczna</button><button type="button" className={plan === 'one-time' ? 'segment-active' : ''} onClick={() => { setPlan('one-time'); setAmount(oneTimeAmounts.includes(amount) ? amount : 25) }}><CircleDollarSign size={16} /> Jednorazowa</button></div>
-        <div className="form-grid payment-fields"><label className="form-field">Kwota {plan === 'monthly' && <span className="optional">co miesiąc</span>}<select value={isCustom ? 'custom' : String(amount)} onChange={(event) => event.target.value === 'custom' ? setAmount(0) : setAmount(Number(event.target.value))}>{choices.map((value) => <option key={value} value={value}>{value} zł</option>)}<option value="custom">Inna kwota</option></select>{isCustom && <span className="custom-amount"><input type="number" min="1" step="0.01" value={amount || ''} onChange={(event) => setAmount(Number(event.target.value))} placeholder="Wpisz kwotę" autoFocus /><span>zł</span></span>}</label>
-          {plan === 'one-time' && <label className="form-field">Sposób płatności<select value={channel ?? ''} onChange={(event) => setChannel(event.target.value as Customer['channel'])}><option value="">Wybierz...</option><option value="onsite">Na miejscu</option><option value="online">Internetowo</option></select></label>}
-        </div>
-        {plan === 'monthly' && <p className="form-explainer"><CalendarDays size={15} /> Pierwszy miesiąc rozliczenia: <strong>{monthTitle()}</strong>. Płatności kolejnych miesięcy pojawią się automatycznie.</p>}
-      </div>
-      <div className="form-section"><div className="form-section-title"><span>03</span><div><strong>Produkty</strong><small>Wydanie zostanie odjęte ze stanu magazynowego</small></div></div><div className="quantity-grid"><QuantityControl label="Naklejki NFC" value={stickers} onChange={setStickers} /><QuantityControl label="Stojaki" value={stands} onChange={setStands} /></div></div>
-      <div className="order-summary"><div><span className="eyebrow">PODSUMOWANIE</span><strong>{plan === 'monthly' ? `${currency(amount)} / miesiąc` : `${currency(amount)} · jednorazowo`}</strong></div><div className="summary-products"><span>{stickers} {plural(stickers, 'naklejkę', 'naklejki', 'naklejek')}</span><i>·</i><span>{stands} {plural(stands, 'stojak', 'stojaki', 'stojaków')}</span></div><span className="summary-owner">Opiekun: {users.find((user) => user.id === ownerId)?.name ?? ''}</span></div>
-      {error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose}>Anuluj</button><button type="submit" className="button button-primary">{customer ? 'Zapisz zmiany' : 'Kontynuuj'} <ArrowUpRight size={16} /></button></div>
+        <label className="form-field form-span-two">Adres<input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Ulica i miasto" required /></label>
+        <label className="form-field form-span-two">Numer telefonu<input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+48 000 000 000" required /></label>
+      </div><button type="button" className="optional-toggle" aria-expanded={showOptional} onClick={() => setShowOptional((open) => !open)}><ChevronDown size={17} />{showOptional ? 'Ukryj dodatkowe dane' : 'Dodaj e-mail, stronę lub zdjęcie'}</button>
+        {showOptional && <div className="form-grid optional-fields"><label className="form-field form-span-two">E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="kontakt@firma.pl" /></label><label className="form-field form-span-two">Strona internetowa<input value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://" /></label><label className="form-field form-span-two">Link do zdjęcia lub logo<input type="url" value={photoUrl} onChange={(event) => setPhotoUrl(event.target.value)} placeholder="https://..." /></label></div>}
+      </div>}
+      {step === 2 && <div className="form-section step-section"><div className="form-section-title"><span>2</span><div><strong>Jak klient płaci?</strong><small>Wybierz plan i kwotę</small></div></div>
+        <div className="segmented-control payment-segments"><button type="button" className={plan === 'monthly' ? 'segment-active' : ''} onClick={() => { setPlan('monthly'); setAmount(monthlyAmounts.includes(amount) ? amount : 15); setChannel(null) }}><CalendarDays size={18} /> Co miesiąc</button><button type="button" className={plan === 'one-time' ? 'segment-active' : ''} onClick={() => { setPlan('one-time'); setAmount(oneTimeAmounts.includes(amount) ? amount : 25) }}><CircleDollarSign size={18} /> Raz</button></div>
+        <label className="form-field payment-amount-field">Kwota {plan === 'monthly' && <span className="optional">miesięcznie</span>}<select value={isCustom ? 'custom' : String(amount)} onChange={(event) => event.target.value === 'custom' ? setAmount(0) : setAmount(Number(event.target.value))}>{choices.map((value) => <option key={value} value={value}>{value} zł</option>)}<option value="custom">Inna kwota</option></select>{isCustom && <span className="custom-amount"><input type="number" min="1" step="0.01" value={amount || ''} onChange={(event) => setAmount(Number(event.target.value))} placeholder="Wpisz kwotę" autoFocus /><span>zł</span></span>}</label>
+        {plan === 'one-time' && <fieldset className="channel-field"><legend>Gdzie klient zapłaci?</legend><div className="channel-options"><button type="button" className={channel === 'onsite' ? 'channel-selected' : ''} onClick={() => setChannel('onsite')}>Na miejscu</button><button type="button" className={channel === 'online' ? 'channel-selected' : ''} onClick={() => setChannel('online')}>Internetowo</button></div></fieldset>}
+        {plan === 'monthly' && <p className="form-explainer"><CalendarDays size={17} /> Pierwsze rozliczenie: <strong>{monthTitle()}</strong></p>}
+      </div>}
+      {step === 3 && <div className="form-section step-section"><div className="form-section-title"><span>3</span><div><strong>Co wydajesz?</strong><small>Stan magazynu zmieni się po dodaniu klienta</small></div></div>
+        <div className="available-stock"><span>Dostępne teraz</span><strong>{inventory.stickers + (customer?.stickers ?? 0)} naklejek</strong><i>·</i><strong>{inventory.stands + (customer?.stands ?? 0)} stojaków</strong></div>
+        <div className="quantity-grid"><QuantityControl label="Naklejki NFC" value={stickers} onChange={setStickers} /><QuantityControl label="Stojaki" value={stands} onChange={setStands} /></div>
+        <div className="order-summary"><span className="summary-customer">{name || 'Nowy klient'}<small>{address}</small></span><strong className="summary-price">{plan === 'monthly' ? `${currency(amount)} / mies.` : `${currency(amount)} · raz`}</strong><span className="summary-products">{stickers} {plural(stickers, 'naklejka', 'naklejki', 'naklejek')} · {stands} {plural(stands, 'stojak', 'stojaki', 'stojaków')}</span></div>
+      </div>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="modal-actions step-actions">{step > 1 ? <button type="button" className="button button-quiet" onClick={() => { setError(''); setStep((current) => current - 1) }}>Wstecz</button> : <button type="button" className="button button-quiet" onClick={onClose}>Anuluj</button>}{step < 3 ? <button type="button" className="button button-primary" onClick={continueStep}>Dalej <ArrowUpRight size={17} /></button> : <button type="submit" className="button button-primary">{customer ? 'Zapisz klienta' : 'Dodaj klienta'} <Check size={17} /></button>}</div>
     </form>
   </Modal>
 }

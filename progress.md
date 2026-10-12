@@ -12,3 +12,7 @@
 - Final `npm run lint` and TypeScript/production build passed. Vite reports a non-blocking large-chunk warning (about 844 kB minified, 240 kB gzip).
 - Responsive measurements passed at 320 px and 390 px widths with no horizontal overflow; the default dev server is running on port 5173.
 - The Supabase secret key was not written to any project file. Rotate it because it was shared in chat.
+- User feedback called out a desktop-first feel, scattered content, hard-to-read text, misclick risk, an overlong customer form, and unneeded login/sidebar/sync-status decoration.
+- Redesigned login as one centered form, removed static local/sync status UI and decorative copy, added a mobile bottom tab bar with secondary actions, increased touch typography/targets, and changed mobile clients from a wide table to compact contact rows.
+- New customer entry is split into three steps: place/contact, payment/amount, and stock quantities/summary. Monthly and one-time paths validate before proceeding.
+- Rechecked browser widths at 320, 390, and 820 px; no horizontal overflow. Tested mobile nav, customer record, payment-history toggle, monthly/one-time form behavior, and stock validation.

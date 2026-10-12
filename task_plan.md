@@ -18,10 +18,8 @@ Build a responsive Polish-language web app for managing NFC sticker customers, i
 4. Validate production build and document Supabase/Vercel setup and security caveat.
 
 ## Status
-- Phase 1: complete
-- Phase 2: complete
-- Phase 3: complete
-- Phase 4: complete
+- Original app build: complete
+- Mobile UX redesign: complete
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -29,3 +27,10 @@ Build a responsive Polish-language web app for managing NFC sticker customers, i
 | Vite refused to scaffold in non-empty root | 1 | Scaffolded in a temporary folder, copied app files, removed temporary folder |
 | Browser couldn't resolve Supabase host | 1 | Kept localStorage fallback; documented that remote sync needs reachable project, Auth, and RLS |
 | `git check-ignore` unavailable | 1 | Workspace is not a Git repository; confirmed `.env.local` matches `.gitignore`'s `*.local` rule |
+
+## Mobile UX Redesign
+- Removed the decorative login split panel, static sync badge, and sidebar filler copy.
+- Added bottom navigation on phone/small tablet and mobile-more menu for secondary destinations.
+- Added a three-step customer flow (contact, payment, products), a clear stock availability line, and larger touch targets.
+- Replaced the mobile customer table with touch-friendly customer rows/actions.
+- Verified responsive width at 320, 390, and 820 CSS px; tested monthly history, one-time channel validation, navigation, and create/delete flow.
