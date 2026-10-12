@@ -1,0 +1,17 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #26342b;
+  background: #f5f7f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; background: #f5f7f4; }
+body { min-width: 320px; min-height: 100vh; margin: 0; }
+#root { min-height: 100vh; }
+button, input, select { font-family: inherit; }
+::selection { color: #173a29; background: #cce5d1; }
